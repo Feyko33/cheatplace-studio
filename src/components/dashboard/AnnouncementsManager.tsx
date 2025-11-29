@@ -16,6 +16,7 @@ export const AnnouncementsManager = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [visible, setVisible] = useState(true);
@@ -38,22 +39,95 @@ export const AnnouncementsManager = () => {
     mutationFn: async (data: any) => {
       const { error } = await supabase.from("announcements").insert({ ...data, author_id: user?.id });
       if (error) throw error;
+
+      await supabase.from("logs").insert({
+        user_id: user?.id,
+        action_type: "announcement_created",
+        message: `Annonce créée: ${data.title}`,
+        metadata: { title: data.title },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["my-announcements"] });
       queryClient.invalidateQueries({ queryKey: ["announcements"] });
       toast.success("Annonce créée !");
+      resetForm();
       setIsDialogOpen(false);
-      setTitle("");
-      setContent("");
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...data }: any) => {
+      const { error } = await supabase
+        .from("announcements")
+        .update(data)
+        .eq("id", id);
+      if (error) throw error;
+
+      await supabase.from("logs").insert({
+        user_id: user?.id,
+        action_type: "announcement_updated",
+        message: `Annonce modifiée: ${data.title}`,
+        metadata: { announcementId: id },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Annonce modifiée !");
+      resetForm();
+      setIsDialogOpen(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("announcements").delete().eq("id", id);
+      if (error) throw error;
+
+      await supabase.from("logs").insert({
+        user_id: user?.id,
+        action_type: "announcement_deleted",
+        message: "Annonce supprimée",
+        metadata: { announcementId: id },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-announcements"] });
+      queryClient.invalidateQueries({ queryKey: ["announcements"] });
+      toast.success("Annonce supprimée !");
+    },
+  });
+
+  const resetForm = () => {
+    setTitle("");
+    setContent("");
+    setVisible(true);
+    setPinned(false);
+    setEditingAnnouncement(null);
+  };
+
+  const handleEdit = (announcement: any) => {
+    setEditingAnnouncement(announcement);
+    setTitle(announcement.title);
+    setContent(announcement.content);
+    setVisible(announcement.visible);
+    setPinned(announcement.pinned);
+    setIsDialogOpen(true);
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) {
+      resetForm();
+    }
+    setIsDialogOpen(open);
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-display font-bold">Annonces</h2>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-button shadow-glow-cyan">
               <Plus className="h-4 w-4 mr-2" />
@@ -62,11 +136,15 @@ export const AnnouncementsManager = () => {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Créer une annonce</DialogTitle>
+              <DialogTitle>{editingAnnouncement ? "Modifier l'annonce" : "Créer une annonce"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={(e) => {
               e.preventDefault();
-              createMutation.mutate({ title, content, visible, pinned });
+              if (editingAnnouncement) {
+                updateMutation.mutate({ id: editingAnnouncement.id, title, content, visible, pinned });
+              } else {
+                createMutation.mutate({ title, content, visible, pinned });
+              }
             }} className="space-y-4">
               <div>
                 <Label htmlFor="title">Titre</Label>
@@ -84,7 +162,9 @@ export const AnnouncementsManager = () => {
                 <Switch checked={pinned} onCheckedChange={setPinned} />
                 <Label>Épingler</Label>
               </div>
-              <Button type="submit" className="w-full bg-gradient-button">Publier</Button>
+              <Button type="submit" className="w-full bg-gradient-button">
+                {editingAnnouncement ? "Modifier" : "Publier"}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -93,7 +173,30 @@ export const AnnouncementsManager = () => {
         {announcements?.map((a) => (
           <Card key={a.id} className="card-glow">
             <CardHeader>
-              <CardTitle>{a.title}</CardTitle>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <CardTitle className="flex items-center gap-2">
+                    {a.title}
+                    {a.pinned && <Pin className="h-4 w-4 text-primary" />}
+                  </CardTitle>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => handleEdit(a)}>
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      if (confirm("Supprimer cette annonce ?")) {
+                        deleteMutation.mutate(a.id);
+                      }
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">{a.content}</p>
