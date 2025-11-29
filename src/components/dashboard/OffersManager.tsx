@@ -323,7 +323,7 @@ export const OffersManager = () => {
                     id="file"
                     type="file"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    accept=".zip,.rar,.7z,.exe,.dll"
+                    accept=".zip,.rar,.7z,.exe,.dll,.txt,.html,.css,.php,.py,.c,.cpp,.js,.json,.xml"
                     className="cursor-pointer"
                   />
                   {file && (
