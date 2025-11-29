@@ -26,7 +26,7 @@ export const HeroSection = () => {
           </h1>
           
           <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
-            Le marketplace ultime pour les cheaters et gamers
+            La marketplace ultime pour les cheaters et gamers
           </p>
 
           <div className="flex flex-wrap gap-4 justify-center items-center pt-8">

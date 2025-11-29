@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const Navbar = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
 
   const handleSignOut = async () => {
@@ -38,20 +38,20 @@ export const Navbar = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
                   <User className="h-4 w-4" />
-                  {profile?.username || "User"}
+                  {user.email?.split('@')[0] || "User"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium">{profile?.username}</p>
+                    <p className="text-sm font-medium">{user.email}</p>
                     <p className="text-xs text-muted-foreground capitalize">
-                      {profile?.role || "client"}
+                      {role || "client"}
                     </p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                {(profile?.role === "vendor" || profile?.role === "admin") && (
+                {(role === "vendor" || role === "admin") && (
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />
                     Dashboard
