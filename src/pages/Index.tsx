@@ -1,12 +1,24 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { Navbar } from "@/components/Navbar";
+import { HeroSection } from "@/components/HeroSection";
+import { OffersSection } from "@/components/OffersSection";
+import { AnnouncementsSection } from "@/components/AnnouncementsSection";
 
 const Index = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="pt-20">
+        <HeroSection />
+        <OffersSection />
+        <AnnouncementsSection />
+      </main>
+      
+      <footer className="border-t border-border/50 bg-card/50 backdrop-blur-sm py-8 mt-20">
+        <div className="container mx-auto px-4 text-center text-muted-foreground text-sm">
+          <p>© 2024 CHEATPLACE-STUDIO. Tous droits réservés.</p>
+          <p className="mt-2">Le marketplace ultime pour les cheaters et gamers</p>
+        </div>
+      </footer>
     </div>
   );
 };
