@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Download } from "lucide-react";
+import { Plus, Edit, Trash2, Download, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -30,6 +30,8 @@ export const OffersManager = () => {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("0");
   const [tags, setTags] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const { data: offers, isLoading } = useQuery({
     queryKey: ["my-offers"],
@@ -47,9 +49,41 @@ export const OffersManager = () => {
 
   const createMutation = useMutation({
     mutationFn: async (offerData: any) => {
+      let fileUrl = null;
+      let fileSize = null;
+      let fileFormat = null;
+
+      // Upload file if provided
+      if (file && user?.id) {
+        setUploading(true);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('offer-files')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          setUploading(false);
+          throw new Error(`Erreur d'upload: ${uploadError.message}`);
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('offer-files')
+          .getPublicUrl(fileName);
+
+        fileUrl = publicUrl;
+        fileSize = file.size;
+        fileFormat = fileExt;
+        setUploading(false);
+      }
+
       const { error } = await supabase.from("offers").insert({
         ...offerData,
         vendor_id: user?.id,
+        file_url: fileUrl,
+        file_size: fileSize,
+        file_format: fileFormat,
       });
 
       if (error) throw error;
@@ -59,7 +93,7 @@ export const OffersManager = () => {
         user_id: user?.id,
         action_type: "offer_created",
         message: `Offre créée: ${offerData.title}`,
-        metadata: { title: offerData.title },
+        metadata: { title: offerData.title, hasFile: !!fileUrl },
       });
     },
     onSuccess: () => {
@@ -76,9 +110,43 @@ export const OffersManager = () => {
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...offerData }: any) => {
+      let fileUrl = offerData.file_url;
+      let fileSize = offerData.file_size;
+      let fileFormat = offerData.file_format;
+
+      // Upload new file if provided
+      if (file && user?.id) {
+        setUploading(true);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('offer-files')
+          .upload(fileName, file);
+
+        if (uploadError) {
+          setUploading(false);
+          throw new Error(`Erreur d'upload: ${uploadError.message}`);
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('offer-files')
+          .getPublicUrl(fileName);
+
+        fileUrl = publicUrl;
+        fileSize = file.size;
+        fileFormat = fileExt;
+        setUploading(false);
+      }
+
       const { error } = await supabase
         .from("offers")
-        .update(offerData)
+        .update({
+          ...offerData,
+          file_url: fileUrl,
+          file_size: fileSize,
+          file_format: fileFormat,
+        })
         .eq("id", id);
 
       if (error) throw error;
@@ -131,6 +199,7 @@ export const OffersManager = () => {
     setDescription("");
     setPrice("0");
     setTags("");
+    setFile(null);
     setEditingOffer(null);
   };
 
@@ -247,12 +316,39 @@ export const OffersManager = () => {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="file">Fichier téléchargeable *</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="file"
+                    type="file"
+                    onChange={(e) => setFile(e.target.files?.[0] || null)}
+                    accept=".zip,.rar,.7z,.exe,.dll"
+                    className="cursor-pointer"
+                  />
+                  {file && (
+                    <Badge variant="outline" className="whitespace-nowrap">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </Badge>
+                  )}
+                </div>
+                {editingOffer?.file_url && !file && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Upload className="h-3 w-3" />
+                    Fichier actuel: {editingOffer.file_format?.toUpperCase()} ({(editingOffer.file_size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
+              </div>
               <div className="flex justify-end gap-2 pt-4">
                 <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
                   Annuler
                 </Button>
-                <Button type="submit" className="bg-gradient-button shadow-glow-cyan">
-                  {editingOffer ? "Modifier" : "Créer"}
+                <Button 
+                  type="submit" 
+                  className="bg-gradient-button shadow-glow-cyan"
+                  disabled={uploading}
+                >
+                  {uploading ? "Upload en cours..." : editingOffer ? "Modifier" : "Créer"}
                 </Button>
               </div>
             </form>

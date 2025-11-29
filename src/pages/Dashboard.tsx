@@ -11,14 +11,14 @@ import { UsersManager } from "@/components/dashboard/UsersManager";
 import { LogsViewer } from "@/components/dashboard/LogsViewer";
 
 const Dashboard = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, role, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && (!user || !profile || (profile.role !== "vendor" && profile.role !== "admin"))) {
+    if (!loading && (!user || !role || (role !== "vendor" && role !== "admin"))) {
       navigate("/");
     }
-  }, [user, profile, loading, navigate]);
+  }, [user, role, loading, navigate]);
 
   if (loading) {
     return (
@@ -31,7 +31,7 @@ const Dashboard = () => {
     );
   }
 
-  if (!user || !profile || (profile.role !== "vendor" && profile.role !== "admin")) {
+  if (!user || !role || (role !== "vendor" && role !== "admin")) {
     return null;
   }
 
@@ -45,7 +45,7 @@ const Dashboard = () => {
               DASHBOARD
             </h1>
             <p className="text-muted-foreground">
-              Bienvenue, {profile.username} ({profile.role})
+              Bienvenue ({role})
             </p>
           </div>
 
@@ -63,7 +63,7 @@ const Dashboard = () => {
                 <Megaphone className="h-4 w-4" />
                 <span className="hidden sm:inline">Annonces</span>
               </TabsTrigger>
-              {profile.role === "admin" && (
+              {role === "admin" && (
                 <TabsTrigger value="users" className="gap-2">
                   <Users className="h-4 w-4" />
                   <span className="hidden sm:inline">Utilisateurs</span>
@@ -87,7 +87,7 @@ const Dashboard = () => {
               <AnnouncementsManager />
             </TabsContent>
 
-            {profile.role === "admin" && (
+            {role === "admin" && (
               <TabsContent value="users">
                 <UsersManager />
               </TabsContent>
