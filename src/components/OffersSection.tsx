@@ -20,28 +20,16 @@ export const OffersSection = () => {
     try {
       setDownloadingId(offer.id);
       
-      // Extract file path from the file_url
-      const urlParts = offer.file_url.split('/');
-      const filePath = urlParts.slice(urlParts.indexOf('offer-files') + 1).join('/');
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = offer.file_url;
+      link.download = offer.title;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-      // Create a signed URL for secure download
-      const { data, error } = await supabase.storage
-        .from('offer-files')
-        .createSignedUrl(filePath, 60); // 60 seconds expiry
-
-      if (error) throw error;
-
-      if (data?.signedUrl) {
-        // Create a temporary link and trigger download
-        const link = document.createElement('a');
-        link.href = data.signedUrl;
-        link.download = offer.title;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast.success("Téléchargement démarré");
-      }
+      toast.success("Téléchargement démarré");
     } catch (error) {
       console.error("Download error:", error);
       toast.error("Erreur lors du téléchargement");
