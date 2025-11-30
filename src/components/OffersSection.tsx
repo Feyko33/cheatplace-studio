@@ -19,16 +19,20 @@ export const OffersSection = () => {
 
     try {
       setDownloadingId(offer.id);
-      
-      // Create a temporary link and trigger download
-      const link = document.createElement('a');
-      link.href = offer.file_url;
-      link.download = offer.title;
-      link.target = '_blank';
+
+      // Construire une URL de téléchargement forcé via le paramètre `download`
+      const hasQuery = offer.file_url.includes("?");
+      const fileExtension = offer.file_format ? `.${offer.file_format}` : "";
+      const downloadFileName = `${offer.title}${fileExtension}`;
+      const downloadUrl = `${offer.file_url}${hasQuery ? "&" : "?"}download=${encodeURIComponent(downloadFileName)}`;
+
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = downloadFileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       toast.success("Téléchargement démarré");
     } catch (error) {
       console.error("Download error:", error);
