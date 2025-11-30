@@ -137,18 +137,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signOut = async () => {
-    // Log logout
-    if (user) {
-      await supabase.from("logs").insert({
-        user_id: user.id,
-        action_type: "logout",
-        message: "Déconnexion",
-      });
-    }
+    try {
+      // Essayer d'enregistrer le log de déconnexion, mais ne pas bloquer si RLS l'empêche
+      if (user) {
+        const { error } = await supabase.from("logs").insert({
+          user_id: user.id,
+          action_type: "logout",
+          message: "Déconnexion",
+        });
 
-    await supabase.auth.signOut();
-    setRole(null);
-    navigate("/");
+        if (error) {
+          console.error("Error inserting logout log:", error);
+        }
+      }
+    } catch (error) {
+      console.error("Unexpected error during logout logging:", error);
+    } finally {
+      await supabase.auth.signOut();
+      setRole(null);
+      navigate("/");
+    }
   };
 
   return (
