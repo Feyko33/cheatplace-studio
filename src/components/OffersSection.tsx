@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { toast } from "sonner";
 export const OffersSection = () => {
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   const handleDownload = async (offer: any) => {
     if (!offer.file_url) {
@@ -19,6 +20,16 @@ export const OffersSection = () => {
 
     try {
       setDownloadingId(offer.id);
+
+      // Incrémenter le compteur de téléchargements
+      const { error: updateError } = await supabase
+        .from("offers")
+        .update({ download_count: (offer.download_count || 0) + 1 })
+        .eq("id", offer.id);
+
+      if (updateError) {
+        console.error("Error updating download count:", updateError);
+      }
 
       // Construire une URL de téléchargement forcé via le paramètre `download`
       const hasQuery = offer.file_url.includes("?");
@@ -32,6 +43,9 @@ export const OffersSection = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      // Rafraîchir les données pour afficher le nouveau compteur
+      queryClient.invalidateQueries({ queryKey: ["offers"] });
 
       toast.success("Téléchargement démarré");
     } catch (error) {
