@@ -216,6 +216,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_offer_download: {
+        Args: { _offer_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "client" | "vendor" | "admin"

@@ -21,11 +21,9 @@ export const OffersSection = () => {
     try {
       setDownloadingId(offer.id);
 
-      // Incrémenter le compteur de téléchargements
+      // Incrémenter le compteur de téléchargements via la fonction sécurisée
       const { error: updateError } = await supabase
-        .from("offers")
-        .update({ download_count: (offer.download_count || 0) + 1 })
-        .eq("id", offer.id);
+        .rpc('increment_offer_download', { _offer_id: offer.id });
 
       if (updateError) {
         console.error("Error updating download count:", updateError);
