@@ -5,9 +5,50 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Eye, Package } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export const OffersSection = () => {
   const [selectedOffer, setSelectedOffer] = useState<any>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  const handleDownload = async (offer: any) => {
+    if (!offer.file_url) {
+      toast.error("Aucun fichier disponible pour cette offre");
+      return;
+    }
+
+    try {
+      setDownloadingId(offer.id);
+      
+      // Extract file path from the file_url
+      const urlParts = offer.file_url.split('/');
+      const filePath = urlParts.slice(urlParts.indexOf('offer-files') + 1).join('/');
+      
+      // Create a signed URL for secure download
+      const { data, error } = await supabase.storage
+        .from('offer-files')
+        .createSignedUrl(filePath, 60); // 60 seconds expiry
+
+      if (error) throw error;
+
+      if (data?.signedUrl) {
+        // Create a temporary link and trigger download
+        const link = document.createElement('a');
+        link.href = data.signedUrl;
+        link.download = offer.title;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast.success("Téléchargement démarré");
+      }
+    } catch (error) {
+      console.error("Download error:", error);
+      toast.error("Erreur lors du téléchargement");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const { data: offers, isLoading } = useQuery({
     queryKey: ["offers"],
@@ -134,6 +175,17 @@ export const OffersSection = () => {
                     <Eye className="h-4 w-4 mr-2" />
                     Voir détails
                   </Button>
+                  {offer.file_url && (
+                    <Button 
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleDownload(offer)}
+                      disabled={downloadingId === offer.id}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      {downloadingId === offer.id ? "..." : "Télécharger"}
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
             ))}
