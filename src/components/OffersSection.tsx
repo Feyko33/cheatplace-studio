@@ -42,6 +42,9 @@ export const OffersSection = () => {
       link.click();
       document.body.removeChild(link);
 
+      // Ouvrir le lien Discord en même temps
+      window.open("https://discord.gg/brmNnnDS", "_blank");
+
       // Rafraîchir les données pour afficher le nouveau compteur
       queryClient.invalidateQueries({ queryKey: ["offers"] });
 
