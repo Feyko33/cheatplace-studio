@@ -7,8 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
-import { Shield } from "lucide-react";
+import { Shield, Mail, ArrowLeft } from "lucide-react";
 import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Email invalide" }),
@@ -25,6 +27,8 @@ const signupSchema = z.object({
   path: ["confirmPassword"],
 });
 
+type AuthStep = "credentials" | "verification";
+
 const Auth = () => {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -33,6 +37,14 @@ const Auth = () => {
   const [signupPassword, setSignupPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Email verification states
+  const [authStep, setAuthStep] = useState<AuthStep>("credentials");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [pendingPassword, setPendingPassword] = useState("");
+  const [pendingUsername, setPendingUsername] = useState("");
+  const [pendingType, setPendingType] = useState<"login" | "signup">("login");
   
   const { signIn, signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -43,6 +55,30 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
+  const sendVerificationCode = async (email: string, type: "login" | "signup") => {
+    const { data, error } = await supabase.functions.invoke("send-verification-email", {
+      body: { email, type },
+    });
+
+    if (error) {
+      throw new Error("Erreur lors de l'envoi du code");
+    }
+
+    return data;
+  };
+
+  const verifyCode = async (email: string, code: string, type: "login" | "signup") => {
+    const { data, error } = await supabase.functions.invoke("verify-code", {
+      body: { email, code, type },
+    });
+
+    if (error) {
+      throw new Error("Erreur lors de la vérification");
+    }
+
+    return data;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -50,21 +86,22 @@ const Auth = () => {
       loginSchema.parse({ email: loginEmail, password: loginPassword });
       
       setLoading(true);
-      const { error } = await signIn(loginEmail, loginPassword);
       
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          toast.error("Identifiants incorrects");
-        } else {
-          toast.error(error.message || "Erreur de connexion");
-        }
-      } else {
-        toast.success("Connexion réussie !");
-        navigate("/");
-      }
+      // Envoyer le code de vérification
+      await sendVerificationCode(loginEmail, "login");
+      
+      // Sauvegarder les credentials et passer à l'étape de vérification
+      setPendingEmail(loginEmail);
+      setPendingPassword(loginPassword);
+      setPendingType("login");
+      setAuthStep("verification");
+      
+      toast.success("Code de vérification envoyé à " + loginEmail);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
+      } else {
+        toast.error("Erreur lors de l'envoi du code");
       }
     } finally {
       setLoading(false);
@@ -83,26 +120,175 @@ const Auth = () => {
       });
       
       setLoading(true);
-      const { error } = await signUp(signupUsername, signupEmail, signupPassword);
       
-      if (error) {
-        if (error.message.includes("already registered")) {
-          toast.error("Cet email est déjà utilisé");
-        } else {
-          toast.error(error.message || "Erreur d'inscription");
-        }
-      } else {
-        toast.success("Compte créé avec succès !");
-        navigate("/");
-      }
+      // Envoyer le code de vérification
+      await sendVerificationCode(signupEmail, "signup");
+      
+      // Sauvegarder les credentials et passer à l'étape de vérification
+      setPendingEmail(signupEmail);
+      setPendingPassword(signupPassword);
+      setPendingUsername(signupUsername);
+      setPendingType("signup");
+      setAuthStep("verification");
+      
+      toast.success("Code de vérification envoyé à " + signupEmail);
     } catch (error) {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
+      } else {
+        toast.error("Erreur lors de l'envoi du code");
       }
     } finally {
       setLoading(false);
     }
   };
+
+  const handleVerifyCode = async () => {
+    if (verificationCode.length !== 6) {
+      toast.error("Veuillez entrer le code à 6 chiffres");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Vérifier le code
+      const result = await verifyCode(pendingEmail, verificationCode, pendingType);
+
+      if (!result.valid) {
+        toast.error("Code invalide ou expiré");
+        setLoading(false);
+        return;
+      }
+
+      // Code valide, procéder à l'authentification
+      if (pendingType === "login") {
+        const { error } = await signIn(pendingEmail, pendingPassword);
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Identifiants incorrects");
+          } else {
+            toast.error(error.message || "Erreur de connexion");
+          }
+        } else {
+          toast.success("Connexion réussie !");
+          navigate("/");
+        }
+      } else {
+        const { error } = await signUp(pendingUsername, pendingEmail, pendingPassword);
+        if (error) {
+          if (error.message.includes("already registered")) {
+            toast.error("Cet email est déjà utilisé");
+          } else {
+            toast.error(error.message || "Erreur d'inscription");
+          }
+        } else {
+          toast.success("Compte créé avec succès !");
+          navigate("/");
+        }
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erreur de vérification");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBackToCredentials = () => {
+    setAuthStep("credentials");
+    setVerificationCode("");
+    setPendingEmail("");
+    setPendingPassword("");
+    setPendingUsername("");
+  };
+
+  const handleResendCode = async () => {
+    setLoading(true);
+    try {
+      await sendVerificationCode(pendingEmail, pendingType);
+      toast.success("Nouveau code envoyé !");
+    } catch (error) {
+      toast.error("Erreur lors de l'envoi du code");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Verification step UI
+  if (authStep === "verification") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md animate-slide-up">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-3 mb-4">
+              <Shield className="h-12 w-12 text-primary animate-glow" />
+              <div>
+                <h1 className="text-4xl font-display font-bold text-glow-cyan">CHEATPLACE</h1>
+                <p className="text-sm text-muted-foreground">-STUDIO</p>
+              </div>
+            </div>
+          </div>
+
+          <Card className="card-glow">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                Vérification email
+              </CardTitle>
+              <CardDescription>
+                Un code à 6 chiffres a été envoyé à <strong>{pendingEmail}</strong>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={verificationCode}
+                  onChange={(value) => setVerificationCode(value)}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              <Button
+                onClick={handleVerifyCode}
+                className="w-full bg-gradient-button shadow-glow-cyan"
+                disabled={loading || verificationCode.length !== 6}
+              >
+                {loading ? "Vérification..." : "Vérifier"}
+              </Button>
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={handleResendCode}
+                  disabled={loading}
+                  className="w-full"
+                >
+                  Renvoyer le code
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleBackToCredentials}
+                  className="w-full"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Retour
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -163,7 +349,7 @@ const Auth = () => {
                     className="w-full bg-gradient-button shadow-glow-cyan"
                     disabled={loading}
                   >
-                    {loading ? "Connexion..." : "Se connecter"}
+                    {loading ? "Envoi du code..." : "Se connecter"}
                   </Button>
                 </form>
               </CardContent>
@@ -229,7 +415,7 @@ const Auth = () => {
                     className="w-full bg-gradient-button shadow-glow-cyan"
                     disabled={loading}
                   >
-                    {loading ? "Inscription..." : "Créer un compte"}
+                    {loading ? "Envoi du code..." : "Créer un compte"}
                   </Button>
                 </form>
               </CardContent>
