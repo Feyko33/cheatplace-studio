@@ -28,6 +28,17 @@ export const OffersSection = () => {
       if (updateError) {
         console.error("Error updating download count:", updateError);
       }
+      
+      // Enregistrer le téléchargement pour l'utilisateur connecté
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase
+          .from("user_downloads")
+          .insert({
+            user_id: user.id,
+            offer_id: offer.id
+          });
+      }
 
       // Construire une URL de téléchargement forcé via le paramètre `download`
       const hasQuery = offer.file_url.includes("?");

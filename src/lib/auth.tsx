@@ -88,8 +88,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
-      // Update last login
+      // Update last login and increment login count
       if (data.user) {
+        await supabase
+          .rpc('increment_login_count', { user_id: data.user.id });
+
         await supabase
           .from("profiles")
           .update({ 
