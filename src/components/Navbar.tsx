@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Shield, LogOut, LayoutDashboard, User } from "lucide-react";
+import { Shield, LogOut, LayoutDashboard, User, BarChart3 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
   DropdownMenu,
@@ -51,6 +51,10 @@ export const Navbar = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate("/stats")}>
+                  <BarChart3 className="mr-2 h-4 w-4" />
+                  Mes Statistiques
+                </DropdownMenuItem>
                 {(role === "vendor" || role === "admin") && (
                   <DropdownMenuItem onClick={() => navigate("/dashboard")}>
                     <LayoutDashboard className="mr-2 h-4 w-4" />

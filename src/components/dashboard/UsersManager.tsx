@@ -112,22 +112,17 @@ export const UsersManager = () => {
 
   const toggleBanMutation = useMutation({
     mutationFn: async ({ userId, active }: { userId: string; active: boolean }) => {
-      const { error } = await supabase
-        .from("profiles")
-        .update({ active })
-        .eq("id", userId);
-      if (error) throw error;
-
-      // Log l'action
-      await supabase.from("logs").insert({
-        action_type: active ? "user_unbanned" : "user_banned",
-        message: active ? "Utilisateur débanni" : "Utilisateur banni",
-        metadata: { target_user_id: userId },
+      // Utiliser l'edge function pour bannir/débannir
+      const { data, error } = await supabase.functions.invoke("ban-user", {
+        body: { userId, ban: !active }
       });
+
+      if (error) throw error;
+      return data;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
-      toast.success(variables.active ? "Utilisateur débanni" : "Utilisateur banni");
+      toast.success(variables.active ? "Utilisateur banni" : "Utilisateur débanni");
     },
     onError: (error: any) => {
       toast.error("Erreur: " + error.message);

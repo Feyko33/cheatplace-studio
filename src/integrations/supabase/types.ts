@@ -305,6 +305,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_login_count: { Args: { user_id: string }; Returns: undefined }
       increment_offer_download: {
         Args: { _offer_id: string }
         Returns: undefined

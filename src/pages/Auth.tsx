@@ -56,6 +56,17 @@ const Auth = () => {
   }, [user, navigate]);
 
   const sendVerificationCode = async (email: string, type: "login" | "signup") => {
+    // Vérifier si l'email est banni
+    const { data: bannedData } = await supabase
+      .from("banned_emails")
+      .select("*")
+      .eq("email", email)
+      .maybeSingle();
+    
+    if (bannedData) {
+      throw new Error("Ce compte a été banni. Contactez l'administrateur.");
+    }
+    
     const { data, error } = await supabase.functions.invoke("send-verification-email", {
       body: { email, type },
     });
