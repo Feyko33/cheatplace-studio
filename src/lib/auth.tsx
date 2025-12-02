@@ -90,13 +90,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Update last login and increment login count
       if (data.user) {
-        await supabase
-          .rpc('increment_login_count', { user_id: data.user.id });
+        // Récupérer le compteur actuel
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("login_count")
+          .eq("id", data.user.id)
+          .single();
 
         await supabase
           .from("profiles")
           .update({ 
             last_login: new Date().toISOString(),
+            login_count: (profileData?.login_count || 0) + 1
           })
           .eq("id", data.user.id);
 
