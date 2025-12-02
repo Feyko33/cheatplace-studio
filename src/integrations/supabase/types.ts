@@ -55,6 +55,30 @@ export type Database = {
           },
         ]
       }
+      banned_emails: {
+        Row: {
+          banned_at: string
+          banned_by: string | null
+          email: string
+          id: string
+          reason: string | null
+        }
+        Insert: {
+          banned_at?: string
+          banned_by?: string | null
+          email: string
+          id?: string
+          reason?: string | null
+        }
+        Update: {
+          banned_at?: string
+          banned_by?: string | null
+          email?: string
+          id?: string
+          reason?: string | null
+        }
+        Relationships: []
+      }
       logs: {
         Row: {
           action_type: string
@@ -153,6 +177,7 @@ export type Database = {
           id: string
           ip_last_login: string | null
           last_login: string | null
+          login_count: number
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
           username: string
@@ -163,6 +188,7 @@ export type Database = {
           id: string
           ip_last_login?: string | null
           last_login?: string | null
+          login_count?: number
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           username: string
@@ -173,11 +199,41 @@ export type Database = {
           id?: string
           ip_last_login?: string | null
           last_login?: string | null
+          login_count?: number
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
           username?: string
         }
         Relationships: []
+      }
+      user_downloads: {
+        Row: {
+          downloaded_at: string
+          id: string
+          offer_id: string
+          user_id: string
+        }
+        Insert: {
+          downloaded_at?: string
+          id?: string
+          offer_id: string
+          user_id: string
+        }
+        Update: {
+          downloaded_at?: string
+          id?: string
+          offer_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_downloads_offer_id_fkey"
+            columns: ["offer_id"]
+            isOneToOne: false
+            referencedRelation: "offers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
