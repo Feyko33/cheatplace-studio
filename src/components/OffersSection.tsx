@@ -46,6 +46,7 @@ export const OffersSection = () => {
       const downloadFileName = `${offer.title}${fileExtension}`;
       const downloadUrl = `${offer.file_url}${hasQuery ? "&" : "?"}download=${encodeURIComponent(downloadFileName)}`;
 
+      // Télécharger le fichier
       const link = document.createElement("a");
       link.href = downloadUrl;
       link.download = downloadFileName;
@@ -53,8 +54,14 @@ export const OffersSection = () => {
       link.click();
       document.body.removeChild(link);
 
-      // Ouvrir le lien Discord en même temps
-      window.open("https://discord.gg/brmNnnDS", "_blank");
+      // Ouvrir le lien Discord via une balise <a> pour éviter le blocage popup
+      const discordLink = document.createElement("a");
+      discordLink.href = "https://discord.gg/brmNnnDS";
+      discordLink.target = "_blank";
+      discordLink.rel = "noopener noreferrer";
+      document.body.appendChild(discordLink);
+      discordLink.click();
+      document.body.removeChild(discordLink);
 
       // Rafraîchir les données pour afficher le nouveau compteur
       queryClient.invalidateQueries({ queryKey: ["offers"] });
