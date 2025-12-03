@@ -54,6 +54,26 @@ const Auth = () => {
     return !!bannedData;
   };
 
+  const checkUsernameExists = async (username: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("username", username)
+      .maybeSingle();
+    
+    return !!data;
+  };
+
+  const checkEmailExists = async (email: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", email)
+      .maybeSingle();
+    
+    return !!data;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -112,11 +132,21 @@ const Auth = () => {
         setLoading(false);
         return;
       }
+
+      // Vérifier si le username existe déjà
+      const usernameExists = await checkUsernameExists(signupUsername);
+      if (usernameExists) {
+        toast.error("Ce nom d'utilisateur est déjà pris");
+        setLoading(false);
+        return;
+      }
       
       const { error } = await signUp(signupUsername, signupEmail, signupPassword);
       if (error) {
         if (error.message.includes("already registered")) {
           toast.error("Cet email est déjà utilisé");
+        } else if (error.message.includes("duplicate key") || error.message.includes("unique constraint")) {
+          toast.error("Ce nom d'utilisateur ou cet email est déjà utilisé");
         } else {
           toast.error(error.message || "Erreur d'inscription");
         }
