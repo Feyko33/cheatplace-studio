@@ -79,6 +79,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  const getClientIP = async (): Promise<string | null> => {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      return data.ip;
+    } catch (error) {
+      console.error("Error fetching IP:", error);
+      return null;
+    }
+  };
+
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -88,8 +99,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
-      // Update last login and increment login count
+      // Update last login, increment login count, and store IP
       if (data.user) {
+        // Récupérer l'IP du client
+        const clientIP = await getClientIP();
+
         // Récupérer le compteur actuel
         const { data: profileData } = await supabase
           .from("profiles")
@@ -101,16 +115,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           .from("profiles")
           .update({ 
             last_login: new Date().toISOString(),
-            login_count: (profileData?.login_count || 0) + 1
+            login_count: (profileData?.login_count || 0) + 1,
+            ip_last_login: clientIP
           })
           .eq("id", data.user.id);
 
-        // Log login
+        // Log login with IP
         await supabase.from("logs").insert({
           user_id: data.user.id,
           action_type: "login",
           message: "Connexion réussie",
-          metadata: { email },
+          metadata: { email, ip: clientIP },
         });
       }
 
