@@ -156,6 +156,8 @@ export type Database = {
           file_url: string | null
           id: string
           image_preview_url: string | null
+          media_type: string | null
+          media_url: string | null
           price: number
           tags: string[] | null
           title: string
@@ -171,6 +173,8 @@ export type Database = {
           file_url?: string | null
           id?: string
           image_preview_url?: string | null
+          media_type?: string | null
+          media_url?: string | null
           price?: number
           tags?: string[] | null
           title: string
@@ -186,6 +190,8 @@ export type Database = {
           file_url?: string | null
           id?: string
           image_preview_url?: string | null
+          media_type?: string | null
+          media_url?: string | null
           price?: number
           tags?: string[] | null
           title?: string

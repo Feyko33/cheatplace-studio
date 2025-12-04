@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Eye, Package } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Download, Eye, Package, X, Play, Image as ImageIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -217,6 +218,90 @@ export const OffersSection = () => {
           </div>
         )}
       </div>
+
+      {/* Dialog pour voir les détails avec média */}
+      <Dialog open={!!selectedOffer} onOpenChange={() => setSelectedOffer(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-2xl">{selectedOffer?.title}</DialogTitle>
+            <DialogDescription>
+              Par {selectedOffer?.profiles?.username || "Vendor"}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Affichage média (image ou vidéo) */}
+          {(selectedOffer?.image_preview_url || selectedOffer?.media_url) && (
+            <div className="relative rounded-lg overflow-hidden bg-muted">
+              {selectedOffer?.media_type === 'video' && selectedOffer?.media_url ? (
+                <video 
+                  controls 
+                  className="w-full max-h-[400px] object-contain"
+                  poster={selectedOffer?.image_preview_url || undefined}
+                >
+                  <source src={selectedOffer.media_url} type="video/mp4" />
+                  Votre navigateur ne supporte pas la lecture de vidéos.
+                </video>
+              ) : selectedOffer?.image_preview_url ? (
+                <img 
+                  src={selectedOffer.image_preview_url} 
+                  alt={selectedOffer?.title}
+                  className="w-full max-h-[400px] object-contain"
+                />
+              ) : null}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              {selectedOffer?.price > 0 ? (
+                <Badge variant="default" className="bg-gradient-button text-lg px-3 py-1">
+                  {selectedOffer?.price}€
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-accent text-lg px-3 py-1">
+                  GRATUIT
+                </Badge>
+              )}
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Download className="h-4 w-4" />
+                {selectedOffer?.download_count} téléchargements
+              </div>
+            </div>
+
+            <p className="text-muted-foreground">{selectedOffer?.description}</p>
+
+            {selectedOffer?.tags && selectedOffer.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {selectedOffer.tags.map((tag: string) => (
+                  <Badge key={tag} variant="outline">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+
+            {selectedOffer?.file_size && (
+              <p className="text-sm text-muted-foreground">
+                Taille du fichier: {formatFileSize(selectedOffer.file_size)}
+              </p>
+            )}
+
+            {selectedOffer?.file_url && (
+              <Button 
+                className="w-full bg-gradient-button shadow-glow-cyan"
+                onClick={() => {
+                  handleDownload(selectedOffer);
+                  setSelectedOffer(null);
+                }}
+                disabled={downloadingId === selectedOffer?.id}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {downloadingId === selectedOffer?.id ? "Téléchargement..." : "Télécharger"}
+              </Button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };

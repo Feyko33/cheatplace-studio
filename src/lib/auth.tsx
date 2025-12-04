@@ -90,8 +90,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const checkBannedEmail = async (email: string): Promise<boolean> => {
+    const { data } = await supabase
+      .from("banned_emails")
+      .select("*")
+      .eq("email", email)
+      .maybeSingle();
+    return !!data;
+  };
+
+  const checkBannedIP = async (ip: string): Promise<boolean> => {
+    if (!ip) return false;
+    const { data } = await supabase
+      .from("banned_ips")
+      .select("*")
+      .eq("ip_address", ip)
+      .maybeSingle();
+    return !!data;
+  };
+
   const signIn = async (email: string, password: string) => {
     try {
+      // Vérifier si l'email est banni AVANT la connexion
+      const isEmailBanned = await checkBannedEmail(email);
+      if (isEmailBanned) {
+        return { error: { message: "Ce compte a été banni. Contactez l'administrateur." } };
+      }
+
+      // Vérifier si l'IP est bannie AVANT la connexion
+      const clientIP = await getClientIP();
+      if (clientIP) {
+        const isIPBanned = await checkBannedIP(clientIP);
+        if (isIPBanned) {
+          return { error: { message: "Votre adresse IP a été bannie. Contactez l'administrateur." } };
+        }
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -101,9 +135,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       // Update last login, increment login count, and store IP
       if (data.user) {
-        // Récupérer l'IP du client
-        const clientIP = await getClientIP();
-
         // Récupérer le compteur actuel
         const { data: profileData } = await supabase
           .from("profiles")
