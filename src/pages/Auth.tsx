@@ -54,6 +54,27 @@ const Auth = () => {
     return !!bannedData;
   };
 
+  const getClientIP = async (): Promise<string | null> => {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      return data.ip;
+    } catch (error) {
+      console.error("Error fetching IP:", error);
+      return null;
+    }
+  };
+
+  const checkBannedIP = async (ip: string): Promise<boolean> => {
+    if (!ip) return false;
+    const { data } = await supabase
+      .from("banned_ips")
+      .select("*")
+      .eq("ip_address", ip)
+      .maybeSingle();
+    return !!data;
+  };
+
   const checkUsernameExists = async (username: string): Promise<boolean> => {
     const { data } = await supabase
       .from("profiles")
@@ -81,14 +102,6 @@ const Auth = () => {
       loginSchema.parse({ email: loginEmail, password: loginPassword });
       
       setLoading(true);
-
-      // Vérifier si l'email est banni
-      const isBanned = await checkBanned(loginEmail);
-      if (isBanned) {
-        toast.error("Ce compte a été banni. Contactez l'administrateur.");
-        setLoading(false);
-        return;
-      }
       
       const { error } = await signIn(loginEmail, loginPassword);
       if (error) {
@@ -124,6 +137,17 @@ const Auth = () => {
       });
       
       setLoading(true);
+
+      // Vérifier si l'IP est bannie
+      const clientIP = await getClientIP();
+      if (clientIP) {
+        const isIPBanned = await checkBannedIP(clientIP);
+        if (isIPBanned) {
+          toast.error("Votre adresse IP a été bannie. Contactez l'administrateur.");
+          setLoading(false);
+          return;
+        }
+      }
 
       // Vérifier si l'email est banni
       const isBanned = await checkBanned(signupEmail);
