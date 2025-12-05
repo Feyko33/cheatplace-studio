@@ -9,13 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit, Trash2, Download, Upload } from "lucide-react";
+import { Plus, Edit, Trash2, Download, Upload, Image, Video } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 const offerSchema = z.object({
   title: z.string().min(3, "Le titre doit contenir au moins 3 caractères").max(100),
-  description: z.string().min(10, "La description doit contenir au moins 10 caractères").max(1000),
+  description: z.string().min(10, "La description doit contenir au moins 10 caractères").max(5000),
   price: z.number().min(0, "Le prix doit être positif"),
   tags: z.string(),
 });
@@ -31,6 +31,8 @@ export const OffersManager = () => {
   const [price, setPrice] = useState("0");
   const [tags, setTags] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [previewImage, setPreviewImage] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
   const { data: offers, isLoading } = useQuery({
@@ -52,20 +54,24 @@ export const OffersManager = () => {
       let fileUrl = null;
       let fileSize = null;
       let fileFormat = null;
+      let mediaUrl = null;
+      let mediaType = null;
+      let imagePreviewUrl = null;
 
-      // Upload file if provided
+      setUploading(true);
+
+      // Upload main file if provided
       if (file && user?.id) {
-        setUploading(true);
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
         
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('offer-files')
           .upload(fileName, file);
 
         if (uploadError) {
           setUploading(false);
-          throw new Error(`Erreur d'upload: ${uploadError.message}`);
+          throw new Error(`Erreur d'upload du fichier: ${uploadError.message}`);
         }
 
         const { data: { publicUrl } } = supabase.storage
@@ -75,8 +81,52 @@ export const OffersManager = () => {
         fileUrl = publicUrl;
         fileSize = file.size;
         fileFormat = fileExt;
-        setUploading(false);
       }
+
+      // Upload media file (image/video) if provided
+      if (mediaFile && user?.id) {
+        const mediaExt = mediaFile.name.split('.').pop()?.toLowerCase();
+        const mediaFileName = `${user.id}/media_${Date.now()}.${mediaExt}`;
+        
+        const { error: mediaUploadError } = await supabase.storage
+          .from('offer-files')
+          .upload(mediaFileName, mediaFile);
+
+        if (mediaUploadError) {
+          setUploading(false);
+          throw new Error(`Erreur d'upload du média: ${mediaUploadError.message}`);
+        }
+
+        const { data: { publicUrl: mediaPublicUrl } } = supabase.storage
+          .from('offer-files')
+          .getPublicUrl(mediaFileName);
+
+        mediaUrl = mediaPublicUrl;
+        mediaType = ['mp4', 'webm', 'mov', 'avi'].includes(mediaExt || '') ? 'video' : 'image';
+      }
+
+      // Upload preview image if provided
+      if (previewImage && user?.id) {
+        const previewExt = previewImage.name.split('.').pop();
+        const previewFileName = `${user.id}/preview_${Date.now()}.${previewExt}`;
+        
+        const { error: previewUploadError } = await supabase.storage
+          .from('offer-files')
+          .upload(previewFileName, previewImage);
+
+        if (previewUploadError) {
+          setUploading(false);
+          throw new Error(`Erreur d'upload de l'aperçu: ${previewUploadError.message}`);
+        }
+
+        const { data: { publicUrl: previewPublicUrl } } = supabase.storage
+          .from('offer-files')
+          .getPublicUrl(previewFileName);
+
+        imagePreviewUrl = previewPublicUrl;
+      }
+
+      setUploading(false);
 
       const { error } = await supabase.from("offers").insert({
         ...offerData,
@@ -84,6 +134,9 @@ export const OffersManager = () => {
         file_url: fileUrl,
         file_size: fileSize,
         file_format: fileFormat,
+        media_url: mediaUrl,
+        media_type: mediaType,
+        image_preview_url: imagePreviewUrl,
       });
 
       if (error) throw error;
@@ -93,7 +146,7 @@ export const OffersManager = () => {
         user_id: user?.id,
         action_type: "offer_created",
         message: `Offre créée: ${offerData.title}`,
-        metadata: { title: offerData.title, hasFile: !!fileUrl },
+        metadata: { title: offerData.title, hasFile: !!fileUrl, hasMedia: !!mediaUrl },
       });
     },
     onSuccess: () => {
@@ -113,10 +166,14 @@ export const OffersManager = () => {
       let fileUrl = offerData.file_url;
       let fileSize = offerData.file_size;
       let fileFormat = offerData.file_format;
+      let mediaUrl = offerData.media_url;
+      let mediaType = offerData.media_type;
+      let imagePreviewUrl = offerData.image_preview_url;
+
+      setUploading(true);
 
       // Upload new file if provided
       if (file && user?.id) {
-        setUploading(true);
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
         
@@ -136,8 +193,52 @@ export const OffersManager = () => {
         fileUrl = publicUrl;
         fileSize = file.size;
         fileFormat = fileExt;
-        setUploading(false);
       }
+
+      // Upload media file if provided
+      if (mediaFile && user?.id) {
+        const mediaExt = mediaFile.name.split('.').pop()?.toLowerCase();
+        const mediaFileName = `${user.id}/media_${Date.now()}.${mediaExt}`;
+        
+        const { error: mediaUploadError } = await supabase.storage
+          .from('offer-files')
+          .upload(mediaFileName, mediaFile);
+
+        if (mediaUploadError) {
+          setUploading(false);
+          throw new Error(`Erreur d'upload du média: ${mediaUploadError.message}`);
+        }
+
+        const { data: { publicUrl: mediaPublicUrl } } = supabase.storage
+          .from('offer-files')
+          .getPublicUrl(mediaFileName);
+
+        mediaUrl = mediaPublicUrl;
+        mediaType = ['mp4', 'webm', 'mov', 'avi'].includes(mediaExt || '') ? 'video' : 'image';
+      }
+
+      // Upload preview image if provided
+      if (previewImage && user?.id) {
+        const previewExt = previewImage.name.split('.').pop();
+        const previewFileName = `${user.id}/preview_${Date.now()}.${previewExt}`;
+        
+        const { error: previewUploadError } = await supabase.storage
+          .from('offer-files')
+          .upload(previewFileName, previewImage);
+
+        if (previewUploadError) {
+          setUploading(false);
+          throw new Error(`Erreur d'upload de l'aperçu: ${previewUploadError.message}`);
+        }
+
+        const { data: { publicUrl: previewPublicUrl } } = supabase.storage
+          .from('offer-files')
+          .getPublicUrl(previewFileName);
+
+        imagePreviewUrl = previewPublicUrl;
+      }
+
+      setUploading(false);
 
       const { error } = await supabase
         .from("offers")
@@ -146,6 +247,9 @@ export const OffersManager = () => {
           file_url: fileUrl,
           file_size: fileSize,
           file_format: fileFormat,
+          media_url: mediaUrl,
+          media_type: mediaType,
+          image_preview_url: imagePreviewUrl,
         })
         .eq("id", id);
 
@@ -200,6 +304,8 @@ export const OffersManager = () => {
     setPrice("0");
     setTags("");
     setFile(null);
+    setMediaFile(null);
+    setPreviewImage(null);
     setEditingOffer(null);
   };
 
@@ -283,15 +389,17 @@ export const OffersManager = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description *</Label>
+                <Label htmlFor="description">Description * (max 5000 caractères)</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Décrivez votre offre en détail..."
                   rows={4}
+                  maxLength={5000}
                   required
                 />
+                <p className="text-xs text-muted-foreground">{description.length}/5000 caractères</p>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -317,7 +425,7 @@ export const OffersManager = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="file">Fichier téléchargeable *</Label>
+                <Label htmlFor="file">Fichier téléchargeable (max 150 MB)</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     id="file"
@@ -336,6 +444,52 @@ export const OffersManager = () => {
                   <p className="text-sm text-muted-foreground flex items-center gap-1">
                     <Upload className="h-3 w-3" />
                     Fichier actuel: {editingOffer.file_format?.toUpperCase()} ({(editingOffer.file_size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="previewImage" className="flex items-center gap-2">
+                  <Image className="h-4 w-4" />
+                  Image d'aperçu (miniature)
+                </Label>
+                <Input
+                  id="previewImage"
+                  type="file"
+                  onChange={(e) => setPreviewImage(e.target.files?.[0] || null)}
+                  accept="image/*"
+                  className="cursor-pointer"
+                />
+                {previewImage && (
+                  <Badge variant="outline" className="whitespace-nowrap">
+                    {previewImage.name}
+                  </Badge>
+                )}
+                {editingOffer?.image_preview_url && !previewImage && (
+                  <p className="text-sm text-muted-foreground">Image d'aperçu existante</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="mediaFile" className="flex items-center gap-2">
+                  <Video className="h-4 w-4" />
+                  Média de démonstration (image ou vidéo)
+                </Label>
+                <Input
+                  id="mediaFile"
+                  type="file"
+                  onChange={(e) => setMediaFile(e.target.files?.[0] || null)}
+                  accept="image/*,video/*"
+                  className="cursor-pointer"
+                />
+                {mediaFile && (
+                  <Badge variant="outline" className="whitespace-nowrap">
+                    {mediaFile.name} ({(mediaFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </Badge>
+                )}
+                {editingOffer?.media_url && !mediaFile && (
+                  <p className="text-sm text-muted-foreground">
+                    Média existant: {editingOffer.media_type === 'video' ? 'Vidéo' : 'Image'}
                   </p>
                 )}
               </div>
