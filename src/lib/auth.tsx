@@ -10,8 +10,8 @@ interface AuthContextType {
   session: Session | null;
   role: AppRole | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (username: string, email: string, password: string, role?: AppRole) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any; data?: { user: User | null } }>;
+  signUp: (username: string, email: string, password: string, role?: AppRole) => Promise<{ error: any; data?: { user: User | null } }>;
   signOut: () => Promise<void>;
 }
 
@@ -160,7 +160,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
 
-      return { error: null };
+      return { error: null, data: { user: data.user } };
     } catch (error: any) {
       return { error };
     }
@@ -184,7 +184,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       if (error) throw error;
 
-      return { error: null };
+      return { error: null, data: { user: data.user } };
     } catch (error: any) {
       return { error };
     }
